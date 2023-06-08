@@ -1,0 +1,38 @@
+version: 2.1
+jobs:
+  build:
+    working_directory: /app
+    docker:
+      - image: circleci/node:14
+
+    steps:
+      - checkout
+
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "package.json" }}
+            - v1-dependencies-
+
+      - run:
+          name: Install Dependencies
+          command: npm install
+
+      - save_cache:
+          paths:
+            - node_modules
+          key: v1-dependencies-{{ checksum "package.json" }}
+
+      - run:
+          name: Run Tests
+          command: npm test
+
+      - run:
+          name: Build Docker Image
+          command: docker build -t myapp/backend .
+
+      - run:
+          name: Push Docker Image to AWS ECR
+          command: |
+            echo $AWS_ECR_PASSWORD | docker login --username AWS --password-stdin $AWS_ECR_REPO_URL
+            docker tag myapp/backend:latest $AWS_ECR_REPO_URL/myapp/backend:latest
+            docker push $AWS_ECR_REPO_URL/myapp/backend:latest
